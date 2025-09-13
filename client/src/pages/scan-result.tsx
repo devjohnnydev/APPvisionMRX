@@ -31,8 +31,8 @@ const ScanResult: React.FC = () => {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   
-  // Get scan ID from URL params
-  const urlParams = new URLSearchParams(location.split('?')[1]);
+  // Get scan ID from URL params - handle case when no query params exist
+  const urlParams = new URLSearchParams(location.includes('?') ? location.split('?')[1] : '');
   const scanId = urlParams.get('id');
 
   // Redirect to home if not authenticated
