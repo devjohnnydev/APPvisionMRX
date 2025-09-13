@@ -18,18 +18,21 @@ function Router() {
 
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {/* Landing page for unauthenticated users */}
+      {(isLoading || !isAuthenticated) && (
         <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Home} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/scan" component={Scan} />
-          <Route path="/scan-result" component={ScanResult} />
-          <Route path="/users" component={Users} />
-          <Route path="/profile" component={Profile} />
-        </>
       )}
+      
+      {/* Protected routes - components handle their own auth redirects */}
+      {isAuthenticated && (
+        <Route path="/" component={Home} />
+      )}
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/scan" component={Scan} />
+      <Route path="/scan-result" component={ScanResult} />
+      <Route path="/users" component={Users} />
+      <Route path="/profile" component={Profile} />
+      
       <Route component={NotFound} />
     </Switch>
   );
