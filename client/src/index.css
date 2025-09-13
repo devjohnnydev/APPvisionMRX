@@ -1,0 +1,140 @@
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(240 10% 7%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(240 10% 11%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(240 10% 7%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(142 70% 45%);
+  --primary-foreground: hsl(0 0% 0%);
+  --secondary: hsl(240 5% 20%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(240 5% 15%);
+  --muted-foreground: hsl(240 5% 65%);
+  --accent: hsl(51 100% 50%);
+  --accent-foreground: hsl(0 0% 0%);
+  --destructive: hsl(0 63% 31%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(240 6% 25%);
+  --input: hsl(240 6% 25%);
+  --ring: hsl(142 70% 45%);
+  --chart-1: hsl(142 70% 45%);
+  --chart-2: hsl(159.7826 100% 36.0784%);
+  --chart-3: hsl(51 100% 50%);
+  --chart-4: hsl(147.1429 78.5047% 41.9608%);
+  --chart-5: hsl(341.4894 75.2000% 50.9804%);
+  --sidebar: hsl(240 10% 11%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(142 70% 45%);
+  --sidebar-primary-foreground: hsl(0 0% 0%);
+  --sidebar-accent: hsl(240 5% 20%);
+  --sidebar-accent-foreground: hsl(142 70% 45%);
+  --sidebar-border: hsl(240 6% 25%);
+  --sidebar-ring: hsl(142 70% 45%);
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+  --radius: 8px;
+  --shadow-2xs: 0px 2px 0px 0px hsl(142 70% 45% / 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(142 70% 45% / 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(142 70% 45% / 0.00), 0px 1px 2px -1px hsl(142 70% 45% / 0.00);
+  --shadow: 0px 2px 0px 0px hsl(142 70% 45% / 0.00), 0px 1px 2px -1px hsl(142 70% 45% / 0.00);
+  --shadow-md: 0px 2px 0px 0px hsl(142 70% 45% / 0.00), 0px 2px 4px -1px hsl(142 70% 45% / 0.00);
+  --shadow-lg: 0px 2px 0px 0px hsl(142 70% 45% / 0.00), 0px 4px 6px -1px hsl(142 70% 45% / 0.00);
+  --shadow-xl: 0px 2px 0px 0px hsl(142 70% 45% / 0.00), 0px 8px 10px -1px hsl(142 70% 45% / 0.00);
+  --shadow-2xl: 0px 2px 0px 0px hsl(142 70% 45% / 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: hsl(240 10% 7%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(240 10% 11%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(240 10% 7%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(142 70% 45%);
+  --primary-foreground: hsl(0 0% 0%);
+  --secondary: hsl(240 5% 20%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(240 5% 15%);
+  --muted-foreground: hsl(240 5% 65%);
+  --accent: hsl(51 100% 50%);
+  --accent-foreground: hsl(0 0% 0%);
+  --destructive: hsl(0 63% 31%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(240 6% 25%);
+  --input: hsl(240 6% 25%);
+  --ring: hsl(142 70% 45%);
+  --chart-1: hsl(142 70% 45%);
+  --chart-2: hsl(159.7826 100% 36.0784%);
+  --chart-3: hsl(51 100% 50%);
+  --chart-4: hsl(147.1429 78.5047% 41.9608%);
+  --chart-5: hsl(341.4894 75.2000% 50.9804%);
+  --sidebar: hsl(240 10% 11%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(142 70% 45%);
+  --sidebar-primary-foreground: hsl(0 0% 0%);
+  --sidebar-accent: hsl(240 5% 20%);
+  --sidebar-accent-foreground: hsl(142 70% 45%);
+  --sidebar-border: hsl(240 6% 25%);
+  --sidebar-ring: hsl(142 70% 45%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  html {
+    @apply dark;
+  }
+}
+
+@layer utilities {
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Custom scan animation */
+@keyframes scan-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(0, 200, 81, 0.3); 
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(0, 200, 81, 0.6); 
+  }
+}
+
+.scan-pulse {
+  animation: scan-pulse 2s infinite;
+}
+
+/* Loading animation for skeleton components */
+@keyframes loading {
+  0% { 
+    background-position: 200% 0; 
+  }
+  100% { 
+    background-position: -200% 0; 
+  }
+}
+
+.loading-skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, var(--secondary) 50%, var(--muted) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
