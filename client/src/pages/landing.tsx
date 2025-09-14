@@ -217,7 +217,7 @@ const Landing: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     data-testid="input-email"
                     placeholder="Digite seu email"
-                    className="h-12 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                    className="h-12 bg-card border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 text-foreground"
                     required
                   />
                 </motion.div>
@@ -238,7 +238,7 @@ const Landing: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     data-testid="input-password"
                     placeholder="Digite sua senha"
-                    className="h-12 bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                    className="h-12 bg-card border-border focus:border-primary focus:ring-primary/20 transition-all duration-300 text-foreground"
                     required
                   />
                 </motion.div>
