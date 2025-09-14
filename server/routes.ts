@@ -103,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/dashboard/stats', requireAuth, async (req: any, res) => {
     try {
       const stats = await storage.getScannedBoardStats();
       const activeUsers = await storage.getUsersByRole("user");
@@ -120,11 +120,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Scanned boards
-  app.get('/api/scanned-boards', isAuthenticated, async (req: any, res) => {
+  app.get('/api/scanned-boards', requireAuth, async (req: any, res) => {
     try {
       const { boardType, startDate, endDate, limit = 20, offset = 0 } = req.query;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -134,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Only admins can see all boards, users see only their own
       if (user.role !== "admin") {
-        filters.userId = userId;
+        filters.userId = user.id;
       }
       
       if (boardType) filters.boardType = boardType;
@@ -163,10 +162,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/scan', isAuthenticated, upload.single('image'), async (req: any, res) => {
+  app.post('/api/scan', requireAuth, upload.single('image'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -187,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Save to database with new fields
       const boardData = {
-        userId,
+        userId: user.id,
         boardType: analysis.boardType,
         category: analysis.category || "Unknown",
         deviceType: analysis.deviceType || "Unknown",
@@ -215,11 +213,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/scanned-boards/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/scanned-boards/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -232,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Users can only access their own boards unless they're admin
-      if (user.role !== "admin" && board.userId !== userId) {
+      if (user.role !== "admin" && board.userId !== user.id) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -244,10 +241,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management (admin only)
-  app.get('/api/users', isAuthenticated, async (req: any, res) => {
+  app.get('/api/users', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -261,10 +257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/users', isAuthenticated, async (req: any, res) => {
+  app.post('/api/users', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -279,14 +274,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/users/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/users/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       // Users can edit their own profile, admins can edit any profile
-      if (!user || (user.role !== "admin" && userId !== id)) {
+      if (!user || (user.role !== "admin" && user.id !== id)) {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -304,17 +298,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/users/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/users/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      if (userId === id) {
+      if (user.id === id) {
         return res.status(400).json({ message: "Cannot deactivate your own account" });
       }
 
@@ -327,10 +320,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Board names management (Admin only)
-  app.get('/api/board-names', isAuthenticated, async (req: any, res) => {
+  app.get('/api/board-names', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -352,10 +344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/board-names', isAuthenticated, async (req: any, res) => {
+  app.post('/api/board-names', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -363,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const boardNameData = insertBoardNameSchema.parse({
         ...req.body,
-        createdBy: userId,
+        createdBy: user.id,
       });
       
       const newBoardName = await storage.createBoardName(boardNameData);
@@ -380,11 +371,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/board-names/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/board-names/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -410,11 +400,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/board-names/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/board-names/:id', requireAuth, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
@@ -428,10 +417,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/board-names/search', isAuthenticated, async (req: any, res) => {
+  app.get('/api/board-names/search', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      const user = (req.session as any).user;
       
       if (!user || user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
