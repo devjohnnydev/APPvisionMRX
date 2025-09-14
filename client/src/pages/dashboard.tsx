@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
@@ -8,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bell, Microchip, Users, MapPin } from 'lucide-react';
+import { Bell, Microchip, Users, MapPin, TrendingUp, Activity, Filter, Sparkles } from 'lucide-react';
 
 interface DashboardStats {
   totalToday: number;
@@ -65,11 +66,18 @@ const Dashboard: React.FC = () => {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-background to-card">
         <div className="p-6 space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-48 w-full" />
+          {[...Array(5)].map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              <Skeleton className={`${i === 0 ? 'h-12' : i === 1 ? 'h-32' : 'h-48'} w-full rounded-xl`} />
+            </motion.div>
+          ))}
         </div>
       </div>
     );
@@ -93,162 +101,435 @@ const Dashboard: React.FC = () => {
 
   const getStatusBadge = (confidence: number) => {
     if (confidence >= 0.8) {
-      return <Badge className="bg-primary text-primary-foreground text-xs">Identificado</Badge>;
+      return (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", bounce: 0.5 }}
+        >
+          <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-medium">
+            Identificado
+          </Badge>
+        </motion.div>
+      );
     } else if (confidence >= 0.5) {
-      return <Badge variant="secondary" className="text-xs">Provável</Badge>;
+      return (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", bounce: 0.5 }}
+        >
+          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600 text-xs font-medium">
+            Provável
+          </Badge>
+        </motion.div>
+      );
     } else {
-      return <Badge variant="destructive" className="text-xs">Não identificado</Badge>;
+      return (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", bounce: 0.5 }}
+        >
+          <Badge variant="destructive" className="bg-red-500/20 text-red-600 text-xs font-medium">
+            Não identificado
+          </Badge>
+        </motion.div>
+      );
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
     }
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Status Bar */}
-      <div className="flex justify-between items-center px-6 pt-3 pb-2 text-sm">
-        <span className="font-medium">9:41</span>
-        <div className="flex items-center space-x-1">
-          <i className="fas fa-signal text-xs" />
-          <i className="fas fa-wifi text-xs" />
-          <i className="fas fa-battery-three-quarters text-xs" />
-        </div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className="min-h-screen bg-gradient-to-br from-background via-card/50 to-background pb-20 relative overflow-hidden"
+    >
+      {/* Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute top-10 right-10 w-32 h-32 bg-primary/5 rounded-full blur-xl"
+          animate={{ scale: [1, 1.2, 1], rotate: 360 }}
+          transition={{ duration: 10, repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute bottom-20 left-10 w-24 h-24 bg-accent/5 rounded-full blur-xl"
+          animate={{ scale: [1, 0.8, 1], rotate: -360 }}
+          transition={{ duration: 8, repeat: Infinity }}
+        />
       </div>
+
+      {/* Status Bar */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex justify-between items-center px-6 pt-3 pb-2 text-sm relative z-10"
+      >
+        <span className="font-medium text-foreground/80">9:41</span>
+        <div className="flex items-center space-x-2">
+          <motion.div
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Activity className="w-3 h-3 text-primary" />
+          </motion.div>
+          <div className="w-4 h-2 bg-primary/20 rounded-full">
+            <div className="w-3/4 h-full bg-primary rounded-full" />
+          </div>
+        </div>
+      </motion.div>
 
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="px-6 py-6 border-b border-border/50 relative z-10"
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Dashboard</h2>
-            <p className="text-sm text-muted-foreground">
-              Bem-vindo, {user.role === 'admin' ? 'Admin' : user.firstName || user.email}
-            </p>
+            <motion.h2 
+              className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              Dashboard
+            </motion.h2>
+            <motion.p 
+              className="text-sm text-muted-foreground font-medium"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              Bem-vindo, {user.role === 'admin' ? '👑 Admin' : user.firstName || user.email}
+            </motion.p>
           </div>
           <div className="flex items-center space-x-3">
-            <Button variant="secondary" size="sm" data-testid="button-notifications">
-              <Bell className="h-4 w-4 text-accent" />
-            </Button>
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-xs font-bold text-primary-foreground">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                data-testid="button-notifications"
+                className="relative bg-card/80 border-border/50 backdrop-blur-sm"
+              >
+                <Bell className="h-4 w-4 text-accent" />
+                <motion.div
+                  className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              </Button>
+            </motion.div>
+            <motion.div 
+              className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center shadow-lg"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            >
+              <span className="text-sm font-bold text-primary-foreground">
                 {getUserInitials({ firstName: user.firstName, lastName: user.lastName, email: user.email || '' })}
               </span>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats Cards */}
-      <div className="px-6 py-4">
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="bg-secondary">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-muted-foreground text-sm">Placas Hoje</span>
-                <Microchip className="h-4 w-4 text-primary" />
-              </div>
-              <div className="text-2xl font-bold text-foreground" data-testid="stat-boards-today">
-                {statsLoading ? <Skeleton className="h-8 w-12" /> : stats?.totalToday || 0}
-              </div>
-              <div className="text-xs text-primary">vs mês anterior</div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-secondary">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-muted-foreground text-sm">Usuários Ativos</span>
-                <Users className="h-4 w-4 text-accent" />
-              </div>
-              <div className="text-2xl font-bold text-foreground" data-testid="stat-active-users">
-                {statsLoading ? <Skeleton className="h-8 w-12" /> : stats?.activeUsers || 0}
-              </div>
-              <div className="text-xs text-accent">online agora</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center space-x-3 mb-4 overflow-x-auto">
-          {filters.map((filter) => (
-            <Button
-              key={filter}
-              variant={selectedFilter === filter ? "default" : "secondary"}
-              size="sm"
-              onClick={() => setSelectedFilter(filter)}
-              data-testid={`filter-${filter.toLowerCase().replace(' ', '-')}`}
-              className="shrink-0"
-            >
-              {filter}
-            </Button>
-          ))}
-          <Button variant="secondary" size="sm" data-testid="button-advanced-filters">
-            <i className="fas fa-filter text-muted-foreground" />
-          </Button>
-        </div>
-
-        {/* Recent Scans */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground">Escaneamentos Recentes</h3>
-          
-          {scansLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-20 w-full" />
-              ))}
-            </div>
-          ) : recentScans && recentScans.length > 0 ? (
-            <div className="space-y-3">
-              {recentScans.slice(0, 10).map((scan) => (
-                <Card key={scan.id} className="bg-secondary border border-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                          <Microchip className="h-5 w-5 text-primary-foreground" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-foreground" data-testid={`board-type-${scan.id}`}>
-                            {scan.boardType}
-                          </div>
-                          <div className="text-sm text-muted-foreground" data-testid={`user-name-${scan.id}`}>
-                            {scan.user ? 
-                              `${scan.user.firstName || ''} ${scan.user.lastName || ''}`.trim() || scan.user.email 
-                              : 'Usuário desconhecido'
-                            }
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-foreground" data-testid={`scan-time-${scan.id}`}>
-                          {formatTime(scan.createdAt)}
-                        </div>
-                        {getStatusBadge(scan.confidence)}
-                      </div>
-                    </div>
-                    {scan.location && (
-                      <div className="text-xs text-muted-foreground" data-testid={`scan-location-${scan.id}`}>
-                        <MapPin className="inline h-3 w-3 mr-1" />
-                        {scan.location}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="bg-secondary">
-              <CardContent className="p-8 text-center">
-                <Microchip className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum escaneamento encontrado</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Comece escaneando uma placa eletrônica
-                </p>
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="px-6 py-6 relative z-10"
+      >
+        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-4 mb-8">
+          <motion.div
+            whileHover={{ scale: 1.02, y: -2 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <Card className="bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-sm border-border/50 shadow-lg overflow-hidden relative">
+              <CardContent className="p-4">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-full -translate-y-8 translate-x-8" />
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <span className="text-muted-foreground text-sm font-medium">Placas Hoje</span>
+                  <motion.div
+                    animate={{ rotate: [0, 5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Microchip className="h-5 w-5 text-primary" />
+                  </motion.div>
+                </div>
+                <div className="text-3xl font-bold text-foreground mb-1" data-testid="stat-boards-today">
+                  {statsLoading ? (
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <Skeleton className="h-8 w-12 rounded-lg" />
+                    </motion.div>
+                  ) : (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", bounce: 0.5, delay: 0.5 }}
+                    >
+                      {stats?.totalToday || 0}
+                    </motion.span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-1">
+                  <TrendingUp className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-500 font-medium">+12% vs ontem</span>
+                </div>
               </CardContent>
             </Card>
-          )}
-        </div>
-      </div>
+          </motion.div>
+          
+          <motion.div
+            whileHover={{ scale: 1.02, y: -2 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <Card className="bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-sm border-border/50 shadow-lg overflow-hidden relative">
+              <CardContent className="p-4">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-accent/10 rounded-full -translate-y-8 translate-x-8" />
+                <div className="flex items-center justify-between mb-3 relative z-10">
+                  <span className="text-muted-foreground text-sm font-medium">Usuários Ativos</span>
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Users className="h-5 w-5 text-accent" />
+                  </motion.div>
+                </div>
+                <div className="text-3xl font-bold text-foreground mb-1" data-testid="stat-active-users">
+                  {statsLoading ? (
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                    >
+                      <Skeleton className="h-8 w-12 rounded-lg" />
+                    </motion.div>
+                  ) : (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", bounce: 0.5, delay: 0.6 }}
+                    >
+                      {stats?.activeUsers || 0}
+                    </motion.span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-1">
+                  <motion.div
+                    className="w-2 h-2 bg-green-500 rounded-full"
+                    animate={{ opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  />
+                  <span className="text-xs text-green-500 font-medium">online agora</span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        {/* Filters */}
+        <motion.div 
+          variants={itemVariants}
+          className="flex items-center space-x-3 mb-6 overflow-x-auto pb-2"
+        >
+          {filters.map((filter, index) => (
+            <motion.div
+              key={filter}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.7 + index * 0.1 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant={selectedFilter === filter ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setSelectedFilter(filter)}
+                data-testid={`filter-${filter.toLowerCase().replace(' ', '-')}`}
+                className={`shrink-0 relative overflow-hidden ${
+                  selectedFilter === filter 
+                    ? 'bg-gradient-to-r from-primary to-primary/80 shadow-lg' 
+                    : 'bg-card/80 backdrop-blur-sm border-border/50'
+                }`}
+              >
+                {selectedFilter === filter && (
+                  <motion.div
+                    className="absolute inset-0 bg-white/20"
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                  />
+                )}
+                <span className="relative z-10">{filter}</span>
+              </Button>
+            </motion.div>
+          ))}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 1.0 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              data-testid="button-advanced-filters"
+              className="shrink-0 bg-card/80 backdrop-blur-sm border-border/50"
+            >
+              <Filter className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          </motion.div>
+        </motion.div>
+
+        {/* Recent Scans */}
+        <motion.div variants={itemVariants} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-foreground">Escaneamentos Recentes</h3>
+            <motion.div
+              animate={{ rotate: [0, 10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Sparkles className="w-5 h-5 text-accent" />
+            </motion.div>
+          </div>
+          
+          <AnimatePresence>
+            {scansLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                  >
+                    <Skeleton className="h-20 w-full rounded-xl" />
+                  </motion.div>
+                ))}
+              </div>
+            ) : recentScans && recentScans.length > 0 ? (
+              <div className="space-y-3">
+                {recentScans.slice(0, 10).map((scan, index) => (
+                  <motion.div
+                    key={scan.id}
+                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    transition={{ 
+                      delay: index * 0.1,
+                      type: "spring",
+                      stiffness: 100
+                    }}
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    className="group"
+                  >
+                    <Card className="bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm border-border/50 hover:border-primary/20 transition-all duration-300 shadow-lg group-hover:shadow-xl overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-3">
+                            <motion.div 
+                              className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg"
+                              whileHover={{ rotate: 5, scale: 1.05 }}
+                            >
+                              <Microchip className="h-6 w-6 text-primary-foreground" />
+                            </motion.div>
+                            <div>
+                              <motion.div 
+                                className="font-semibold text-foreground group-hover:text-primary transition-colors"
+                                data-testid={`board-type-${scan.id}`}
+                              >
+                                {scan.boardType}
+                              </motion.div>
+                              <div className="text-sm text-muted-foreground" data-testid={`user-name-${scan.id}`}>
+                                {scan.user ? 
+                                  `${scan.user.firstName || ''} ${scan.user.lastName || ''}`.trim() || scan.user.email 
+                                  : 'Usuário desconhecido'
+                                }
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <div className="text-sm font-medium text-foreground" data-testid={`scan-time-${scan.id}`}>
+                              {formatTime(scan.createdAt)}
+                            </div>
+                            {getStatusBadge(scan.confidence)}
+                          </div>
+                        </div>
+                        {scan.location && (
+                          <motion.div 
+                            className="text-xs text-muted-foreground flex items-center space-x-1"
+                            data-testid={`scan-location-${scan.id}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                          >
+                            <MapPin className="w-3 h-3" />
+                            <span>{scan.location}</span>
+                          </motion.div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", bounce: 0.3 }}
+              >
+                <Card className="bg-gradient-to-br from-card/60 to-card/40 backdrop-blur-sm border-border/30">
+                  <CardContent className="p-8 text-center">
+                    <motion.div
+                      animate={{ y: [0, -5, 0] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <Microchip className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
+                    </motion.div>
+                    <p className="text-muted-foreground font-medium">Nenhum escaneamento encontrado</p>
+                    <p className="text-sm text-muted-foreground/80 mt-2">
+                      Comece escaneando uma placa eletrônica
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
 
       <BottomNav />
-    </div>
+    </motion.div>
   );
 };
 
