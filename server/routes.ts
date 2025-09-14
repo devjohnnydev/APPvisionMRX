@@ -8,7 +8,11 @@ import {
   insertScannedBoardSchema, 
   insertUserSchema, 
   insertBoardNameSchema, 
-  updateBoardNameSchema 
+  updateBoardNameSchema,
+  insertUserSessionSchema,
+  updateUserSessionSchema,
+  insertLotSchema,
+  updateScannedBoardSchema
 } from "@shared/schema";
 import multer from "multer";
 import session from "express-session";
@@ -41,11 +45,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   }));
 
-  // Create admin user on startup
-  try {
-    await createAdminUser("johnnybraga2@gmail.com", "46431194", "Johnny", "Braga");
-  } catch (error) {
-    console.error("Failed to create admin user:", error);
+  // Create admin user on startup (only if ADMIN_EMAIL env var is set)
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    try {
+      await createAdminUser(
+        process.env.ADMIN_EMAIL, 
+        process.env.ADMIN_PASSWORD, 
+        process.env.ADMIN_FIRST_NAME || "Admin", 
+        process.env.ADMIN_LAST_NAME || "User"
+      );
+    } catch (error) {
+      console.log("Admin user already exists or failed to create:", error);
+    }
   }
 
   // Email/Password Auth middleware
@@ -435,6 +446,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching board names:", error);
       res.status(500).json({ message: "Failed to search board names" });
+    }
+  });
+
+  // User Activity APIs
+  app.post('/api/activity/start', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if there's already an active session today
+      const activeSessions = await storage.getUserActiveSessions(user.id);
+      if (activeSessions.length > 0) {
+        return res.json(activeSessions[0]); // Return existing session
+      }
+
+      // Create new session
+      const sessionData = insertUserSessionSchema.parse({
+        userId: user.id,
+        startedAt: new Date(),
+        lastActiveAt: new Date(),
+        activityDate: new Date().toISOString().split('T')[0],
+      });
+      
+      const session = await storage.createUserSession(sessionData);
+      res.json(session);
+    } catch (error) {
+      console.error("Error starting session:", error);
+      res.status(500).json({ message: "Failed to start session" });
+    }
+  });
+
+  app.post('/api/activity/ping', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      const { sessionId } = req.body;
+      
+      if (!user || !sessionId) {
+        return res.status(400).json({ message: "User and sessionId required" });
+      }
+
+      const updateData = updateUserSessionSchema.parse({
+        lastActiveAt: new Date(),
+      });
+      
+      const session = await storage.updateUserSession(sessionId, updateData);
+      
+      res.json({ success: true, session });
+    } catch (error) {
+      console.error("Error updating session:", error);
+      res.status(500).json({ message: "Failed to update session" });
+    }
+  });
+
+  app.post('/api/activity/end', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      const { sessionId } = req.body;
+      
+      if (!user || !sessionId) {
+        return res.status(400).json({ message: "User and sessionId required" });
+      }
+
+      const endTime = new Date();
+      
+      // Get session to calculate actual duration
+      const activeSessions = await storage.getUserActiveSessions(user.id);
+      const activeSession = activeSessions.find(s => s.id === sessionId);
+      
+      if (!activeSession) {
+        return res.status(404).json({ message: "Active session not found" });
+      }
+      
+      const startTime = new Date(activeSession.startedAt);
+      const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000); // seconds
+      
+      await storage.endUserSession(sessionId, endTime, duration);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ message: "Failed to end session" });
+    }
+  });
+
+  // Enhanced Scanned Boards APIs
+  app.patch('/api/scanned-boards/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req.session as any).user;
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if board exists and user has access
+      const existingBoard = await storage.getScannedBoardById(id);
+      if (!existingBoard) {
+        return res.status(404).json({ message: "Scanned board not found" });
+      }
+
+      if (user.role !== "admin" && existingBoard.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updates = updateScannedBoardSchema.parse(req.body);
+      const updatedBoard = await storage.updateScannedBoard(id, updates);
+      
+      res.json(updatedBoard);
+    } catch (error) {
+      console.error("Error updating scanned board:", error);
+      res.status(500).json({ message: "Failed to update scanned board" });
+    }
+  });
+
+  // Lots Management APIs
+  app.get('/api/lots', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { status } = req.query;
+      const lots = await storage.getAllLots(status);
+      res.json(lots);
+    } catch (error) {
+      console.error("Error fetching lots:", error);
+      res.status(500).json({ message: "Failed to fetch lots" });
+    }
+  });
+
+  app.post('/api/lots', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const lotData = insertLotSchema.parse({
+        ...req.body,
+        createdBy: user.id,
+      });
+      
+      const lot = await storage.createLot(lotData);
+      res.json(lot);
+    } catch (error) {
+      console.error("Error creating lot:", error);
+      res.status(500).json({ message: "Failed to create lot" });
+    }
+  });
+
+  app.get('/api/lots/:id', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req.session as any).user;
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const lot = await storage.getLotById(id);
+      if (!lot) {
+        return res.status(404).json({ message: "Lot not found" });
+      }
+
+      const stats = await storage.getLotStats(id);
+      res.json({ ...lot, stats });
+    } catch (error) {
+      console.error("Error fetching lot:", error);
+      res.status(500).json({ message: "Failed to fetch lot" });
+    }
+  });
+
+  app.post('/api/lots/:id/close', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req.session as any).user;
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const lot = await storage.closeLot(id);
+      if (!lot) {
+        return res.status(404).json({ message: "Lot not found" });
+      }
+
+      res.json(lot);
+    } catch (error) {
+      console.error("Error closing lot:", error);
+      res.status(500).json({ message: "Failed to close lot" });
+    }
+  });
+
+  app.post('/api/lots/:id/add-boards', requireAuth, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { boardIds } = req.body;
+      const user = (req.session as any).user;
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      if (!boardIds || !Array.isArray(boardIds)) {
+        return res.status(400).json({ message: "boardIds array required" });
+      }
+
+      await storage.addBoardsToLot(id, boardIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error adding boards to lot:", error);
+      res.status(500).json({ message: "Failed to add boards to lot" });
+    }
+  });
+
+  // User Activity Stats (Admin only)
+  app.get('/api/activity/stats', requireAuth, async (req: any, res) => {
+    try {
+      const user = (req.session as any).user;
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { userId, startDate, endDate } = req.query;
+      const stats = await storage.getUserActivityStats(
+        userId, 
+        startDate ? new Date(startDate) : undefined,
+        endDate ? new Date(endDate) : undefined
+      );
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching activity stats:", error);
+      res.status(500).json({ message: "Failed to fetch activity stats" });
     }
   });
 
