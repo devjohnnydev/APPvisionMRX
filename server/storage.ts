@@ -1,12 +1,16 @@
 import {
   users,
   scannedBoards,
+  boardNames,
   type User,
   type UpsertUser,
   type InsertUser,
   type UpdateUser,
   type ScannedBoard,
   type InsertScannedBoard,
+  type BoardName,
+  type InsertBoardName,
+  type UpdateBoardName,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, like, gte, lte, count, SQL } from "drizzle-orm";
@@ -28,6 +32,7 @@ export interface IStorage {
   getScannedBoards(filters?: {
     userId?: string;
     boardType?: string;
+    category?: string;
     startDate?: Date;
     endDate?: Date;
     limit?: number;
@@ -39,8 +44,17 @@ export interface IStorage {
     totalThisMonth: number;
     totalAll: number;
     topBoardTypes: Array<{ boardType: string; count: number }>;
+    topCategories: Array<{ category: string; count: number }>;
   }>;
   getUserScannedBoards(userId: string): Promise<ScannedBoard[]>;
+  
+  // Board names management (Admin only)
+  createBoardName(boardName: InsertBoardName): Promise<BoardName>;
+  updateBoardName(id: string, updates: UpdateBoardName): Promise<BoardName | undefined>;
+  deleteBoardName(id: string): Promise<void>;
+  getAllBoardNames(): Promise<BoardName[]>;
+  getBoardNamesByCategory(category: string): Promise<BoardName[]>;
+  searchBoardNames(query: string): Promise<BoardName[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -114,6 +128,7 @@ export class DatabaseStorage implements IStorage {
   async getScannedBoards(filters?: {
     userId?: string;
     boardType?: string;
+    category?: string;
     startDate?: Date;
     endDate?: Date;
     limit?: number;
@@ -127,6 +142,10 @@ export class DatabaseStorage implements IStorage {
     
     if (filters?.boardType) {
       conditions.push(like(scannedBoards.boardType, `%${filters.boardType}%`));
+    }
+    
+    if (filters?.category) {
+      conditions.push(eq(scannedBoards.category, filters.category));
     }
     
     if (filters?.startDate) {
@@ -165,6 +184,7 @@ export class DatabaseStorage implements IStorage {
     totalThisMonth: number;
     totalAll: number;
     topBoardTypes: Array<{ boardType: string; count: number }>;
+    topCategories: Array<{ category: string; count: number }>;
   }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -195,12 +215,19 @@ export class DatabaseStorage implements IStorage {
       .limit(100);
     
     const boardTypeCounts: Record<string, number> = {};
+    const categoryCounts: Record<string, number> = {};
     recentBoards.forEach(board => {
       boardTypeCounts[board.boardType] = (boardTypeCounts[board.boardType] || 0) + 1;
+      categoryCounts[board.category] = (categoryCounts[board.category] || 0) + 1;
     });
     
     const topBoardTypes = Object.entries(boardTypeCounts)
       .map(([boardType, count]) => ({ boardType, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+      
+    const topCategories = Object.entries(categoryCounts)
+      .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
     
@@ -209,6 +236,7 @@ export class DatabaseStorage implements IStorage {
       totalThisMonth: monthCount.count,
       totalAll: totalCount.count,
       topBoardTypes,
+      topCategories,
     };
   }
 
@@ -218,6 +246,60 @@ export class DatabaseStorage implements IStorage {
       .from(scannedBoards)
       .where(eq(scannedBoards.userId, userId))
       .orderBy(desc(scannedBoards.createdAt));
+  }
+
+  // Board names management (Admin only)
+  async createBoardName(boardNameData: InsertBoardName): Promise<BoardName> {
+    const [boardName] = await db
+      .insert(boardNames)
+      .values(boardNameData)
+      .returning();
+    return boardName;
+  }
+
+  async updateBoardName(id: string, updates: UpdateBoardName): Promise<BoardName | undefined> {
+    const [boardName] = await db
+      .update(boardNames)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(boardNames.id, id))
+      .returning();
+    return boardName;
+  }
+
+  async deleteBoardName(id: string): Promise<void> {
+    await db
+      .update(boardNames)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(boardNames.id, id));
+  }
+
+  async getAllBoardNames(): Promise<BoardName[]> {
+    return await db
+      .select()
+      .from(boardNames)
+      .where(eq(boardNames.isActive, true))
+      .orderBy(desc(boardNames.createdAt));
+  }
+
+  async getBoardNamesByCategory(category: string): Promise<BoardName[]> {
+    return await db
+      .select()
+      .from(boardNames)
+      .where(and(eq(boardNames.isActive, true), eq(boardNames.category, category)))
+      .orderBy(desc(boardNames.createdAt));
+  }
+
+  async searchBoardNames(query: string): Promise<BoardName[]> {
+    return await db
+      .select()
+      .from(boardNames)
+      .where(
+        and(
+          eq(boardNames.isActive, true),
+          like(boardNames.boardType, `%${query}%`)
+        )
+      )
+      .orderBy(desc(boardNames.createdAt));
   }
 }
 
