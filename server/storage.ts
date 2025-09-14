@@ -9,7 +9,7 @@ import {
   type InsertScannedBoard,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, like, gte, lte, count } from "drizzle-orm";
+import { eq, desc, and, like, gte, lte, count, SQL } from "drizzle-orm";
 
 export interface IStorage {
   // User operations - mandatory for Replit Auth
@@ -119,9 +119,7 @@ export class DatabaseStorage implements IStorage {
     limit?: number;
     offset?: number;
   }): Promise<ScannedBoard[]> {
-    let query = db.select().from(scannedBoards);
-    
-    const conditions = [];
+    const conditions: SQL[] = [];
     
     if (filters?.userId) {
       conditions.push(eq(scannedBoards.userId, filters.userId));
@@ -139,21 +137,19 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(scannedBoards.createdAt, filters.endDate));
     }
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    let q = db.select().from(scannedBoards).$dynamic();
+    if (conditions.length) {
+      q = q.where(and(...conditions));
+    }
+    q = q.orderBy(desc(scannedBoards.createdAt));
+    if (filters?.limit !== undefined) {
+      q = q.limit(filters.limit);
+    }
+    if (filters?.offset !== undefined) {
+      q = q.offset(filters.offset);
     }
     
-    query = query.orderBy(desc(scannedBoards.createdAt));
-    
-    if (filters?.limit) {
-      query = query.limit(filters.limit);
-    }
-    
-    if (filters?.offset) {
-      query = query.offset(filters.offset);
-    }
-    
-    return await query;
+    return await q;
   }
 
   async getScannedBoardById(id: string): Promise<ScannedBoard | undefined> {
