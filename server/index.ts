@@ -1,8 +1,27 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Configure trust proxy for Railway
+app.set('trust proxy', 1);
+
+// CORS configuration for Railway deployment
+const corsOptions = {
+  origin: process.env.NODE_ENV === "production" 
+    ? process.env.FRONTEND_URL || false  // Only specific domain in production
+    : ["http://localhost:3000", "http://localhost:5000", "http://127.0.0.1:5000"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// Only use CORS in development since frontend/backend are served from same origin in production
+if (process.env.NODE_ENV !== "production") {
+  app.use(cors(corsOptions));
+}
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
