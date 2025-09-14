@@ -3,7 +3,12 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { analyzeCircuitBoard } from "./services/aiVision";
-import { insertScannedBoardSchema, insertUserSchema } from "@shared/schema";
+import { 
+  insertScannedBoardSchema, 
+  insertUserSchema, 
+  insertBoardNameSchema, 
+  updateBoardNameSchema 
+} from "@shared/schema";
 import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -110,10 +115,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse location data from request body
       const { location, latitude, longitude } = req.body;
       
-      // Save to database
+      // Save to database with new fields
       const boardData = {
         userId,
         boardType: analysis.boardType,
+        category: analysis.category || "Unknown",
+        deviceType: analysis.deviceType || "Unknown",
         manufacturer: analysis.manufacturer,
         model: analysis.model,
         confidence: analysis.confidence,
@@ -246,6 +253,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deactivating user:", error);
       res.status(500).json({ message: "Failed to deactivate user" });
+    }
+  });
+
+  // Board names management (Admin only)
+  app.get('/api/board-names', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { category } = req.query;
+      let boardNames;
+      
+      if (category) {
+        boardNames = await storage.getBoardNamesByCategory(category);
+      } else {
+        boardNames = await storage.getAllBoardNames();
+      }
+      
+      res.json(boardNames);
+    } catch (error) {
+      console.error("Error fetching board names:", error);
+      res.status(500).json({ message: "Failed to fetch board names" });
+    }
+  });
+
+  app.post('/api/board-names', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const boardNameData = insertBoardNameSchema.parse({
+        ...req.body,
+        createdBy: userId,
+      });
+      
+      const newBoardName = await storage.createBoardName(boardNameData);
+      res.json(newBoardName);
+    } catch (error) {
+      console.error("Error creating board name:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid board name data",
+          errors: (error as any).errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create board name" });
+    }
+  });
+
+  app.put('/api/board-names/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const updates = updateBoardNameSchema.parse(req.body);
+      const updatedBoardName = await storage.updateBoardName(id, updates);
+      
+      if (!updatedBoardName) {
+        return res.status(404).json({ message: "Board name not found" });
+      }
+
+      res.json(updatedBoardName);
+    } catch (error) {
+      console.error("Error updating board name:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid board name data",
+          errors: (error as any).errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update board name" });
+    }
+  });
+
+  app.delete('/api/board-names/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.deleteBoardName(id);
+      res.json({ message: "Board name deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting board name:", error);
+      res.status(500).json({ message: "Failed to delete board name" });
+    }
+  });
+
+  app.get('/api/board-names/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { q } = req.query;
+      if (!q) {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+      
+      const boardNames = await storage.searchBoardNames(q);
+      res.json(boardNames);
+    } catch (error) {
+      console.error("Error searching board names:", error);
+      res.status(500).json({ message: "Failed to search board names" });
     }
   });
 
