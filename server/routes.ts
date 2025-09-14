@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { analyzeCircuitBoard } from "./services/aiVision";
+import { authenticateUser, createAdminUser } from "./lib/auth";
 import { 
   insertScannedBoardSchema, 
   insertUserSchema, 
@@ -10,21 +11,90 @@ import {
   updateBoardNameSchema 
 } from "@shared/schema";
 import multer from "multer";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // Setup session middleware for email/password auth
+  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
+  });
+  
+  app.set("trust proxy", 1);
+  app.use(session({
+    secret: process.env.SESSION_SECRET!,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: sessionTtl,
+    },
+  }));
+
+  // Create admin user on startup
+  try {
+    await createAdminUser("johnnybraga2@gmail.com", "46431194", "Johnny", "Braga");
+  } catch (error) {
+    console.error("Failed to create admin user:", error);
+  }
+
+  // Email/Password Auth middleware
+  const requireAuth = (req: any, res: any, next: any) => {
+    if (!(req.session as any)?.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    next();
+  };
+
+  // Email/Password Auth routes
+  app.post('/api/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email e senha são obrigatórios" });
+      }
+
+      const user = await authenticateUser(email, password);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Email ou senha incorretos" });
+      }
+
+      // Store user in session
+      (req.session as any).user = user;
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.post('/api/logout', (req, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ message: "Erro ao fazer logout" });
+      }
+      res.json({ message: "Logout realizado com sucesso" });
+    });
+  });
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      const user = (req.session as any).user;
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

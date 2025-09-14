@@ -1,10 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 const Landing: React.FC = () => {
-  const handleLogin = () => {
-    window.location.href = '/api/login';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { toast } = useToast();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await apiRequest('POST', '/api/login', {
+        email,
+        password,
+      });
+
+      if (response.ok) {
+        // Invalidate auth queries to refetch user data
+        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        toast({
+          title: "Login realizado com sucesso",
+          description: "Bem-vindo ao TechVision!",
+        });
+        // Router will handle redirect automatically
+      }
+    } catch (error: any) {
+      setError(error.message || 'Erro ao fazer login');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -42,15 +76,50 @@ const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* Login Button */}
-          <Button 
-            onClick={handleLogin}
-            data-testid="button-login"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            size="lg"
-          >
-            Entrar com Replit
-          </Button>
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                data-testid="input-email"
+                placeholder="Digite seu email"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                data-testid="input-password"
+                placeholder="Digite sua senha"
+                required
+              />
+            </div>
+
+            <Button 
+              type="submit"
+              data-testid="button-login"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              size="lg"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
 
           {/* Footer */}
           <div className="text-center pt-6 text-xs text-muted-foreground">
